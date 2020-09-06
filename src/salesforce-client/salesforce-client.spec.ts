@@ -1,5 +1,4 @@
-import { SalesforceAuthConfig } from './../../dist/index.d';
-import { SalesforceClient } from './index';
+import { SalesforceClient, SalesforceAuthConfig } from './index';
 import nock from 'nock'
 
 
@@ -18,15 +17,9 @@ const sfInstanceUrl = "https://test.salesforce.com"
 
 const authScope = () => nock("https://login.salesforce.com")
     .defaultReplyHeaders({
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
     })
-    .post("/services/oauth2/token", {
-        'grant_type': 'password',
-        'client_id': authConfig.consumerKey,
-        'client_secret': authConfig.consumerSecret,
-        'username': authConfig.username,
-        'password': authConfig.password
-    })
+    .post("/services/oauth2/token", "grant_type=password&client_id=consuemr%20key&client_secret=sweet%20sweet%20secret&username=jsmith&password=K33p0nTruck1n")
     .reply(200, {
         access_token: accessToken,
         instance_url: sfInstanceUrl

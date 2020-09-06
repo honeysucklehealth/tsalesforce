@@ -7,6 +7,7 @@ export interface SalesforceAuthConfig {
     consumerSecret: string,
     username: string,
     password: string,
+    accessToken: string,
     clientUserAgent: string
 }
 
@@ -23,6 +24,7 @@ interface SalesforceAuthResponse {
 
 type HttpMethod = "GET" | "PUT" | "POST" | "PATCH" | "DELETE"
 type RequestParams<M extends HttpMethod> = M extends "GET" | "DELETE" ? never : any
+
 declare module 'typed-rest-client/RestClient' {
     interface RestClient {
         request<M extends HttpMethod, T = any>(url: string, method: M, options?: IRequestOptions, params?: RequestParams<M>): Promise<T>
@@ -61,7 +63,7 @@ RestClient.prototype.request = function <M extends HttpMethod>(url: string, meth
     })
 }
 
-const DEFAULT_HEADERS = { "Content-Type": "application/x-www-form-urlencoded" }
+const DEFAULT_HEADERS = { "Content-Type": "application/json" }
 const withDefaultHeaders = (obj: Record<string, string>) => Object.assign({}, DEFAULT_HEADERS, obj)
 type HasAttributes = object & { attributes: any }
 
@@ -75,17 +77,22 @@ export class SalesforceClient {
             "client_id": authConfig.consumerKey,
             "client_secret": authConfig.consumerSecret,
             "username": authConfig.username,
-            "password": authConfig.password
+            "password": authConfig.password + authConfig.accessToken
         }
+        const authDataEncoded = Object.keys(authData).map(k => `${encodeURI(k)}=${encodeURI((authData as any)[k])}`).join("&")
         return rc
-            .create<SalesforceAuthResponse>(`${authConfig.loginHost}/services/oauth2/token`, authData, { additionalHeaders: DEFAULT_HEADERS })
+            .client
+            .post(`${authConfig.loginHost}/services/oauth2/token`, authDataEncoded, { 'Content-Type': 'application/x-www-form-urlencoded' })
             .then(r => {
-                if (200 <= r.statusCode && r.statusCode < 300) {
-                    return Promise.resolve(new SalesforceClient({
-                        version: authConfig.version,
-                        host: r.result!.instance_url,
-                        accessToken: r.result!.access_token
-                    }, rc))
+                if (200 <= r.message.statusCode! && r.message.statusCode! < 300) {
+                    return r.readBody().then(b => {
+                        const body = JSON.parse(b) as SalesforceAuthResponse
+                        return Promise.resolve(new SalesforceClient({
+                            version: authConfig.version,
+                            host: body.instance_url,
+                            accessToken: body.access_token
+                        }, rc))
+                    })
                 } else {
                     return Promise.reject(`Error logging in from Salesforce: ${JSON.stringify(r)}`)
                 }
@@ -112,7 +119,7 @@ export class SalesforceClient {
             .rc
             .request<"GET", SearchResponse>(url, "GET", { additionalHeaders: this.defaultHeaders, queryParameters: { params: { q: query } } })
             .then(r => r.searchRecords.map(rec => {
-                const {attributes, ...rest} = rec
+                const { attributes, ...rest } = rec
                 return rest
             }))
     }
@@ -130,7 +137,7 @@ export class SalesforceClient {
             .rc
             .request<"GET", QueryResponse>(url, "GET", { additionalHeaders: this.defaultHeaders, queryParameters: { params: { q: query } } })
             .then(r => r.records.map(rec => {
-                const {attributes, ...rest} = rec
+                const { attributes, ...rest } = rec
                 return rest
             }))
     }
