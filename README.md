@@ -3,6 +3,7 @@
 
 ## Usage
 
+
 ```typescript
 const cfg: SalesforceAuthConfig = {
                 version,

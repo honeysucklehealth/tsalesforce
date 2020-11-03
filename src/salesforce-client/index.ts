@@ -31,7 +31,7 @@ declare module 'typed-rest-client/RestClient' {
     }
 }
 RestClient.prototype.request = function <M extends HttpMethod>(url: string, method: M, options?: IRequestOptions, params?: RequestParams<M>): Promise<any> {
-    console.log(`Calling salesforce. Url: ${url}, method: ${method}, options: ${JSON.stringify(options)}, params: ${JSON.stringify(params)}`)
+    console.log(`Calling salesforce. Url: ${url}, method: ${method}}`)
     var res: Promise<IRestResponse<any>>
     switch (method) {
         case "GET":
@@ -80,6 +80,7 @@ export class SalesforceClient {
             "password": authConfig.password + authConfig.accessToken
         }
         const authDataEncoded = Object.keys(authData).map(k => `${encodeURI(k)}=${encodeURI((authData as any)[k])}`).join("&")
+
         return rc
             .client
             .post(`${authConfig.loginHost}/services/oauth2/token`, authDataEncoded, { 'Content-Type': 'application/x-www-form-urlencoded' })
@@ -94,11 +95,11 @@ export class SalesforceClient {
                         }, rc))
                     })
                 } else {
-                    return Promise.reject(`Error logging in from Salesforce: ${JSON.stringify(r)}`)
+                    return r.readBody().then(b => {
+                        console.error(`Error logging in from Salesforce. Status ${r.message.statusCode}: ${b}`)
+                        return Promise.reject(`Error logging in from Salesforce. Status ${r.message.statusCode}: ${b}`)
+                    })
                 }
-            })
-            .catch(e => {
-                return Promise.reject(`Error logging in from Salesforce: ${JSON.stringify(e)}`)
             })
     }
 
